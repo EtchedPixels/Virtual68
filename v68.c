@@ -483,13 +483,11 @@ static void cleanup(int sig)
 {
 	tcsetattr(0, 0, &saved_term);
 
-	/*ioctl(0, TCSETS, &saved_term);*/
 	exit(1);
 }
 
 static void exit_cleanup(void)
 {
-	/*ioctl(0, TCSETS, &saved_term);*/
 	tcsetattr(0, 0, &saved_term);
 }
 
@@ -513,7 +511,6 @@ int main(int argc, char* argv[])
 	int fd;
 
 	if (tcgetattr(0, &term) == 0) {
-	/*if (ioctl(0, TCGETS, &term) == 0) {*/
 		saved_term = term;
 		atexit(exit_cleanup);
 		signal(SIGINT, cleanup);
@@ -525,7 +522,6 @@ int main(int argc, char* argv[])
 		term.c_cc[VEOF] = 0;
 		term.c_lflag &= ~(ECHO|ECHOE|ECHOK);
 		tcsetattr(0, 0, &term);
-		/*ioctl(0, TCSETS, &term);*/
 	}
 
 	if (argc >= 2 && strcmp(argv[1], "-p") == 0) {
