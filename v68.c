@@ -4,6 +4,11 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#ifdef __MACH__
+#include <mach/clock_types.h>
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
 #include <sys/select.h>
 #include <signal.h>
 #include <termios.h>
@@ -425,7 +430,17 @@ static struct timespec last_time;
 
 static void device_init(void)
 {
+#ifdef __MACH__
+	clock_serv_t cclock;
+	mach_timespec_t mts;
+	host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+	clock_get_time(cclock, &mts);
+	mach_port_deallocate(mach_task_self(), cclock);
+	last_time.tv_sec = mts.tv_sec;
+	last_time.tv_nsec = mts.tv_nsec;
+#else 
 	clock_gettime(CLOCK_MONOTONIC, &last_time);
+#endif
 	irq_pending = 0;
 	if (mmu_type == 1)
 		mmu_mask = 0xFFFFFFFF;
@@ -440,7 +455,17 @@ static void device_update(void)
 {
 	struct timespec tv, tmp;
 	unsigned long n;
+#ifdef __MACH__
+	clock_serv_t cclock;
+	mach_timespec_t mts;
+	host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+	clock_get_time(cclock, &mts);
+	mach_port_deallocate(mach_task_self(), cclock);
+	tv.tv_sec = mts.tv_sec;
+	tv.tv_nsec = mts.tv_nsec;
+#else 
 	clock_gettime(CLOCK_MONOTONIC, &tv);
+#endif
 	tmp.tv_sec = tv.tv_sec - last_time.tv_sec;
 	tmp.tv_nsec = tv.tv_nsec - last_time.tv_nsec;
 	/* Difference in hundredths */
@@ -456,13 +481,14 @@ static struct termios saved_term, term;
 
 static void cleanup(int sig)
 {
-	ioctl(0, TCSETS, &saved_term);
+	tcsetattr(0, 0, &saved_term);
+
 	exit(1);
 }
 
 static void exit_cleanup(void)
 {
-	ioctl(0, TCSETS, &saved_term);
+	tcsetattr(0, 0, &saved_term);
 }
 
 
@@ -484,7 +510,7 @@ int main(int argc, char* argv[])
 {
 	int fd;
 
-	if (ioctl(0, TCGETS, &term) == 0) {
+	if (tcgetattr(0, &term) == 0) {
 		saved_term = term;
 		atexit(exit_cleanup);
 		signal(SIGINT, cleanup);
@@ -495,7 +521,7 @@ int main(int argc, char* argv[])
 		term.c_cc[VINTR] = 0;
 		term.c_cc[VEOF] = 0;
 		term.c_lflag &= ~(ECHO|ECHOE|ECHOK);
-		ioctl(0, TCSETS, &term);
+		tcsetattr(0, 0, &term);
 	}
 
 	if (argc >= 2 && strcmp(argv[1], "-p") == 0) {
