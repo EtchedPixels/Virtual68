@@ -5,6 +5,8 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/select.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -483,6 +485,7 @@ void cpu_pulse_reset(void)
 int main(int argc, char* argv[])
 {
 	int fd;
+	struct stat st;
 
 	if (tcgetattr(0, &term) == 0) {
 		saved_term = term;
@@ -535,7 +538,11 @@ int main(int argc, char* argv[])
 			perror("boot.dat");
 			exit(1);
 		}
-		if (read(fd, ram, 0x1000) != 0x1000) {
+		if (fstat(fd, &st)) {
+			perror("boot.dat");
+			exit(1);
+		}
+		if (read(fd, ram, st.st_size) != st.st_size) {
 			perror("boot.dat");
 			exit(1);
 		}
