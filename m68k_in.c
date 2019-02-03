@@ -6756,6 +6756,7 @@ M68KMAKE_OP(movec, 32, cr, .)
 					REG_DA[(word2 >> 12) & 15] = REG_CACR;
 					return;
 				}
+				m68ki_exception_illegal();
 				return;
 			case 0x800:			   /* USP */
 				REG_DA[(word2 >> 12) & 15] = REG_USP;
