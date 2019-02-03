@@ -56,9 +56,9 @@
 /* ======================================================================== */
 
 /* Turn ON if you want to use the following M68K variants */
-#define M68K_EMULATE_010            OPT_OFF
-#define M68K_EMULATE_EC020          OPT_OFF
-#define M68K_EMULATE_020            OPT_OFF
+#define M68K_EMULATE_010            OPT_ON
+#define M68K_EMULATE_EC020          OPT_ON
+#define M68K_EMULATE_020            OPT_ON
 
 
 /* If ON, the CPU will call m68k_read_immediate_xx() for immediate addressing
@@ -128,7 +128,7 @@
 
 
 /* If ON, the CPU will emulate the 4-byte prefetch queue of a real 68000 */
-#define M68K_EMULATE_PREFETCH       OPT_ON
+#define M68K_EMULATE_PREFETCH       OPT_OFF	//FIXME
 
 
 /* If ON, the CPU will generate address error exceptions if it tries to
