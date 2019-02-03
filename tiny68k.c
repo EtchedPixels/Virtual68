@@ -564,6 +564,7 @@ void cpu_pulse_reset(void)
 int main(int argc, char *argv[])
 {
 	int fd;
+	int cputype = M68K_CPU_TYPE_68000;
 
 	if (tcgetattr(0, &term) == 0) {
 		saved_term = term;
@@ -582,8 +583,10 @@ int main(int argc, char *argv[])
 		tcsetattr(0, 0, &term);
 	}
 
-	if (argc > 2) {
-		fprintf(stderr, "Usage: tiny68k\n");
+	if (argc == 2 && strcmp(argv[1], "-1") == 0)
+		cputype = M68K_CPU_TYPE_68010;
+	else if (argc > 1) {
+		fprintf(stderr, "Usage: tiny68k [-1]\n");
 		exit(-1);
 	}
 
@@ -600,7 +603,7 @@ int main(int argc, char *argv[])
 	close(fd);
 
 	m68k_init();
-	m68k_set_cpu_type(M68K_CPU_TYPE_68000);
+	m68k_set_cpu_type(cputype);
 	m68k_pulse_reset();
 
 	fd = open("tiny68k.img", O_RDWR);
