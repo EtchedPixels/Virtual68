@@ -20,13 +20,17 @@ TAGRET	  = v68 tiny68k
 
 DELETEFILES = $(MUSASHIGENCFILES) $(MUSASHIGENHFILES) $(.OFILES) $(.OFILEST) $(TARGET) $(MUSASHIGENERATOR) *~
 
-all: v68 tiny68k
+all: v68 v68010 tiny68k
 
 clean:
 	rm -f $(DELETEFILES)
 
 v68: $(MUSASHIGENHFILES) $(.OFILES) Makefile
 	$(CC) -o $@ $(.OFILES) $(LFLAGS)
+
+v68010: v68
+	rm -f v68010
+	ln v68 v68010
 
 tiny68k: $(MUSASHIGENHFILES) $(.OFILEST) Makefile
 	$(CC) -o $@ $(.OFILEST) $(LFLAGS)
