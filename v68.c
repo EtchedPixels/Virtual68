@@ -491,6 +491,8 @@ void cpu_pulse_reset(void)
 int main(int argc, char* argv[])
 {
 	int fd;
+	int cputype = M68K_CPU_TYPE_68000;
+	char *p;
 
 	if (tcgetattr(0, &term) == 0) {
 		saved_term = term;
@@ -505,6 +507,13 @@ int main(int argc, char* argv[])
 		term.c_lflag &= ~(ECHO|ECHOE|ECHOK);
 		tcsetattr(0, 0, &term);
 	}
+
+	p = strrchr(argv[0],'/');
+	if (!p++)
+		p = argv[0];
+
+	if (strcmp(p, "v68010") == 0)
+		cputype = M68K_CPU_TYPE_68010;
 
 	if (argc >= 2 && strcmp(argv[1], "-p") == 0) {
 		argv++;
@@ -555,7 +564,7 @@ int main(int argc, char* argv[])
 	}
 	
 	m68k_init();
-	m68k_set_cpu_type(M68K_CPU_TYPE_68000);
+	m68k_set_cpu_type(cputype);
 	m68k_pulse_reset();
 
 	fd = open("disk.img", O_RDWR);
