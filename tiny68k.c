@@ -21,6 +21,8 @@ static uint8_t ram[(16 << 20) - 32768];
 /* IDE controller */
 static struct ide_controller *ide;
 
+static int rc2014;
+
 uint8_t fc;
 
 /* Read/write macros */
@@ -93,6 +95,17 @@ static void irq_compute(void)
 		}
 	} else
 		m68k_set_irq(0);
+}
+
+/* Until we plug any RC2014 emulation into this */
+
+static uint8_t rc2014_inb(uint8_t address)
+{
+	return 0xFF;
+}
+
+static void rc2014_outb(uint8_t address, uint8_t data)
+{
 }
 
 /* 68681 DUART */
@@ -342,6 +355,8 @@ static void duart_write(unsigned int address, unsigned int value)
 	if (!(address & 1))
 		return;
 	value &= 0xFF;
+	if (address != 0x07 && address != 0x1D && address != 0x1F)
+		fprintf(stderr, "duart: %x(%x) %x\n", address, address >> 1, value);
 	switch (address >> 1) {
 	case 0x00:
 		if (duart.port[0].mrp)
@@ -419,6 +434,8 @@ int cpu_irq_ack(int level)
 
 static unsigned int do_io_readb(unsigned int address)
 {
+	if (rc2014 && address >= 0xFF8000 && address <= 0xFF8FFF)
+		return rc2014_inb(((address - 0xFF8000) >> 1) & 0xFF);
 	/* SPI is not modelled */
 	if (address >= 0xFFD000 && address <= 0xFFDFFF)
 		return 0xFF;
@@ -434,6 +451,10 @@ static void do_io_writeb(unsigned int address, unsigned int value)
 {
 	if (address == 0xFFFFFF) {
 		printf("<%c>", value);
+		return;
+	}
+	if (rc2014 && address >= 0xFF8000 && address <= 0xFF8FFF) {
+		rc2014_outb(((address - 0xFF8000) >> 1) & 0xFF, value);
 		return;
 	}
 	/* SPI is not modelled */
@@ -452,6 +473,15 @@ static void do_io_writeb(unsigned int address, unsigned int value)
 unsigned int cpu_read_byte(unsigned int address)
 {
 	address &= 0xFFFFFF;
+	if (rc2014) {
+		/* Musashi can't emulate this properly it seems */
+		if (address >= 0x800000 && address <= 0xFF8000) {
+			fprintf(stderr, "R: bus error at %d\n", address);
+			return 0xFF;
+		}
+		if (address <= 0xFF8000)
+			address &= 0x1FFFFF;
+	}
 	if (address < sizeof(ram))
 		return ram[address];
 	return do_io_readb(address);
@@ -461,10 +491,19 @@ unsigned int cpu_read_word(unsigned int address)
 {
 	address &= 0xFFFFFF;
 
+	if (rc2014) {
+		if (address >= 0x800000 && address < 0xFF8000) {
+			fprintf(stderr, "R: bus error at %d\n", address);
+			return 0xFFFF;
+		}
+		/* RAM wraps four times */
+		if (address <= 0xFF8000)
+			address &= 0x1FFFFF;
+	}
 	if (address < sizeof(ram) - 1)
 		return READ_WORD(ram, address);
 	else if (address >= 0xFFE000 && address <= 0xFFEFFF)
-		return ide_read16(ide, (address & 31) >> 1);
+		return htons(ide_read16(ide, (address & 31) >> 1));
 	return (cpu_read_byte(address) << 8) | cpu_read_byte(address + 1);
 }
 
@@ -485,6 +524,14 @@ unsigned int cpu_read_long_dasm(unsigned int address)
 
 void cpu_write_byte(unsigned int address, unsigned int value)
 {
+	if (rc2014) {
+		if (address >= 0x800000 && address <= 0xFF8000) {
+			fprintf(stderr, "W: bus error at %d\n", address);
+			return;
+		}
+		if (address <= 0xFF8000)
+			address &= 0x1FFFFF;
+	}
 	if (address < sizeof(ram))
 		ram[address] = value;
 	else
@@ -495,10 +542,18 @@ void cpu_write_word(unsigned int address, unsigned int value)
 {
 	address &= 0xFFFFFF;
 
+	if (rc2014) {
+		if (address >= 0x800000 && address <= 0xFF8000) {
+			fprintf(stderr, "W: bus error at %d\n", address);
+			return;
+		}
+		if (address <= 0xFF8000)
+			address &= 0x1FFFFF;
+	}
 	if (address < sizeof(ram) - 1) {
 		WRITE_WORD(ram, address, value);
 	} else if (address >= 0xFFE000 && address <= 0xFFEFFF)
-		ide_write16(ide, (address & 31) >> 1, value);
+		ide_write16(ide, (address & 31) >> 1, ntohs(value));
 	else {
 		/* Corner cases */
 		cpu_write_byte(address, value >> 8);
@@ -561,10 +616,43 @@ void cpu_pulse_reset(void)
 	device_init();
 }
 
+void usage(void)
+{
+	fprintf(stderr, "tiny68k [-0][-1][-2][-e][-r].\n");
+	exit(1);
+}
+
 int main(int argc, char *argv[])
 {
 	int fd;
 	int cputype = M68K_CPU_TYPE_68000;
+	int fast = 0;
+	int opt;
+
+	while((opt = getopt(argc, argv, "012er")) != -1) {
+		switch(opt) {
+		case '0':
+			cputype = M68K_CPU_TYPE_68000;
+			break;
+		case '1':
+			cputype = M68K_CPU_TYPE_68010;
+			break;
+		case '2':
+			cputype = M68K_CPU_TYPE_68020;
+			break;
+		case 'e':
+			cputype = M68K_CPU_TYPE_68EC020;
+			break;
+		case 'r':
+			rc2014 = 1;
+			break;
+		case 'f':
+			fast = 1;
+			break;
+		default:
+			usage();
+		}
+	}
 
 	if (tcgetattr(0, &term) == 0) {
 		saved_term = term;
@@ -583,12 +671,10 @@ int main(int argc, char *argv[])
 		tcsetattr(0, 0, &term);
 	}
 
-	if (argc == 2 && strcmp(argv[1], "-1") == 0)
-		cputype = M68K_CPU_TYPE_68010;
-	else if (argc > 1) {
-		fprintf(stderr, "Usage: tiny68k [-1]\n");
-		exit(-1);
-	}
+	if (optind < argc)
+		usage();
+
+	memset(ram, 0xA7, sizeof(ram));
 
 	/* Boot data into memory */
 	fd = open("tiny68k.rom", O_RDONLY);
@@ -629,6 +715,7 @@ int main(int argc, char *argv[])
 		   testing this stuff */
 		m68k_execute(1000);
 		duart_tick();
-		take_a_nap();
+		if (!fast)
+			take_a_nap();
 	}
 }
