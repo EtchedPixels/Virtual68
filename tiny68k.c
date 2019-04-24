@@ -355,8 +355,7 @@ static void duart_write(unsigned int address, unsigned int value)
 	if (!(address & 1))
 		return;
 	value &= 0xFF;
-	if (address != 0x07 && address != 0x1D && address != 0x1F)
-		fprintf(stderr, "duart: %x(%x) %x\n", address, address >> 1, value);
+
 	switch (address >> 1) {
 	case 0x00:
 		if (duart.port[0].mrp)
