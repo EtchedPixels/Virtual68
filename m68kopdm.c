@@ -10066,6 +10066,7 @@ void m68k_op_movec_32_cr(void)
 					REG_DA[(word2 >> 12) & 15] = REG_CACR;
 					return;
 				}
+				m68ki_exception_illegal();
 				return;
 			case 0x800:			   /* USP */
 				REG_DA[(word2 >> 12) & 15] = REG_USP;
