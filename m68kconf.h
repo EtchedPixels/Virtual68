@@ -92,7 +92,7 @@
 
 /* If ON, the CPU will monitor the trace flags and take trace exceptions
  */
-#define M68K_EMULATE_TRACE          OPT_OFF
+#define M68K_EMULATE_TRACE          OPT_ON
 
 
 /* If ON, CPU will call the output reset callback when it encounters a reset
@@ -128,7 +128,7 @@
 
 
 /* If ON, the CPU will emulate the 4-byte prefetch queue of a real 68000 */
-#define M68K_EMULATE_PREFETCH       OPT_OFF	//FIXME
+#define M68K_EMULATE_PREFETCH       OPT_ON
 
 
 /* If ON, the CPU will generate address error exceptions if it tries to
