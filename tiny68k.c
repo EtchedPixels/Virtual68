@@ -352,6 +352,7 @@ static unsigned int duart_read(unsigned int address)
 
 static void duart_write(unsigned int address, unsigned int value)
 {
+	int bgrc = 0;
 	if (!(address & 1))
 		return;
 	value &= 0xFF;
@@ -365,6 +366,7 @@ static void duart_write(unsigned int address, unsigned int value)
 		break;
 	case 0x01:
 		duart.port[0].csr = value;
+		bgrc = 1;
 		break;
 	case 0x02:
 		duart_command(&duart, 0, value);
@@ -375,6 +377,7 @@ static void duart_write(unsigned int address, unsigned int value)
 	case 0x04:
 		duart.acr = value;
 		duart_irq_calc(&duart);
+		bgrc = 1;
 		break;
 	case 0x05:
 		duart.imr = value;
@@ -415,6 +418,10 @@ static void duart_write(unsigned int address, unsigned int value)
 	case 0x0F:
 		duart.opcr &= ~value;
 		break;
+	}
+	if (bgrc) {
+		printf("BGR %d\n", duart.acr >> 7);
+		printf("CSR %d\n", duart.port[0].csr >> 4);
 	}
 }
 
@@ -525,7 +532,7 @@ void cpu_write_byte(unsigned int address, unsigned int value)
 {
 	if (rc2014) {
 		if (address >= 0x800000 && address <= 0xFF8000) {
-			fprintf(stderr, "W: bus error at %d\n", address);
+			fprintf(stderr, "W: bus error at %06X\n", address);
 			return;
 		}
 		if (address <= 0xFF8000)
@@ -543,7 +550,7 @@ void cpu_write_word(unsigned int address, unsigned int value)
 
 	if (rc2014) {
 		if (address >= 0x800000 && address <= 0xFF8000) {
-			fprintf(stderr, "W: bus error at %d\n", address);
+			fprintf(stderr, "W: bus error at %06X\n", address);
 			return;
 		}
 		if (address <= 0xFF8000)
@@ -627,6 +634,9 @@ int main(int argc, char *argv[])
 	int cputype = M68K_CPU_TYPE_68000;
 	int fast = 0;
 	int opt;
+	const char *romname, *diskname;
+
+	fprintf(stderr, "This version of Tiny68K is deprecated, please see the RC2014 emulators\n");
 
 	while((opt = getopt(argc, argv, "012er")) != -1) {
 		switch(opt) {
@@ -676,13 +686,20 @@ int main(int argc, char *argv[])
 	memset(ram, 0xA7, sizeof(ram));
 
 	/* Boot data into memory */
-	fd = open("tiny68k.rom", O_RDONLY);
+	if (rc2014) {
+		romname = "t68krc.rom";
+		diskname = "t68krc.img";
+	} else {
+		romname = "tiny68k.rom";
+		diskname = "tiny68k.img";
+	}
+	fd = open(romname, O_RDONLY);
 	if (fd == -1) {
-		perror("tiny68k.rom");
+		perror(romname);
 		exit(1);
 	}
 	if (read(fd, ram, 0x8000) < 0x1000) {
-		fprintf(stderr, "tiny68k.rom: too short.\n");
+		fprintf(stderr, "%s: too short.\n", romname);
 		exit(1);
 	}
 	close(fd);
@@ -691,9 +708,9 @@ int main(int argc, char *argv[])
 	m68k_set_cpu_type(cputype);
 	m68k_pulse_reset();
 
-	fd = open("tiny68k.img", O_RDWR);
+	fd = open(diskname, O_RDWR);
 	if (fd == -1) {
-		perror("tiny68k.img");
+		perror(diskname);
 		exit(1);
 	}
 	ide = ide_allocate("hd0");
