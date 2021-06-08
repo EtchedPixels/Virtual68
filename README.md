@@ -21,7 +21,7 @@ makedisk 1 disk.img	# makedisk is in the IDE repository
 At the moment there is a very simplistic boot "rom" which provides minimal
 services via a jump table, and a simple command prompt (b boot r reset)
 
-There are two reasons for Vrtual68 existing
+There are two reasons for Virtual68 existing
 
 1. It provides an extremely simple convenient bring up platform for FUZIX on a
 68000
