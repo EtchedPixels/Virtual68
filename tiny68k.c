@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include "v68.h"
 #include "m68k.h"
 #include "m68kcpu.h"
